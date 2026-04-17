@@ -272,6 +272,12 @@ const ListingDetail = () => {
 
         setEditLoading(true);
         try {
+            // Check if price or name changed - if so, set back to pending for re-approval
+            const hasCriticalChanges = 
+                editForm.product_name !== listing.product_name || 
+                editForm.rent_price !== listing.rent_price ||
+                editForm.product_type !== listing.product_type;
+
             const { error } = await supabase
                 .from('listings')
                 .update({
@@ -283,6 +289,7 @@ const ListingDetail = () => {
                     address: editForm.address,
                     city: editForm.city,
                     pin_code: editForm.pin_code,
+                    listing_status: hasCriticalChanges ? 'pending' : listing.listing_status
                 })
                 .eq('id', listing.id)
                 .eq('owner_user_id', user.id);
@@ -295,7 +302,14 @@ const ListingDetail = () => {
                 ...editForm,
             }));
 
-            toast({ title: "Success", description: "Listing updated successfully" });
+            if (hasCriticalChanges) {
+                toast({ 
+                    title: "Update Submitted", 
+                    description: "Your listing has been updated and is pending re-approval due to price/name changes." 
+                });
+            } else {
+                toast({ title: "Success", description: "Listing updated successfully" });
+            }
             setEditOpen(false);
         } catch (error: any) {
             console.error('Error updating listing:', error);
