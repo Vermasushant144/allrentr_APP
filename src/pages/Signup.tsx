@@ -131,69 +131,39 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      // Try signup directly to catch the specific error
-      const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      const result = await signup({
+        name: formData.name,
         email: formData.email,
+        phone: formData.phone,
         password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-            phone: formData.phone,
-            pin_code: formData.pin_code,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        pin_code: formData.pin_code,
       });
 
-      if (signupError) {
-        const errorMsg = signupError.message?.toLowerCase() || '';
+      if (result.success) {
+        if (result.verified) {
+          navigate('/listings');
+        } else {
+          // Stay on page or show different message
+          setStep(4); // Or a final "Check Email" step
+        }
+      } else if (result.error) {
+        const errorMsg = result.error.toLowerCase();
         const isDuplicateEmail =
           errorMsg.includes('already registered') ||
           errorMsg.includes('already exists') ||
           errorMsg.includes('user already') ||
-          errorMsg.includes('email already') ||
-          signupError.status === 422;
+          errorMsg.includes('email already');
 
         if (isDuplicateEmail) {
-          // Email already exists - go back to step 1 and show error
           setStep(1);
           setErrors(prev => ({
             ...prev,
             email: 'This email is already registered. Please login instead.'
           }));
-          toast({
-            title: "Email already registered",
-            description: "This email is already registered. Please login instead or use a different email.",
-            variant: "destructive",
-          });
-        } else {
-          // Other signup errors
-          toast({
-            title: 'Signup failed',
-            description: signupError.message || 'Unable to create account.',
-            variant: 'destructive',
-          });
         }
-        setLoading(false);
-        return;
-      }
-
-      // Signup successful - show confirmation and navigate
-      if (signupData.user) {
-        toast({
-          title: 'Account created successfully 🎉',
-          description: 'Please check your email to verify your account.',
-        });
-
-        navigate('/listings');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast({
-        title: 'Error',
-        description: 'Something went wrong while signing up.',
-        variant: 'destructive',
-      });
     } finally {
       setLoading(false);
     }

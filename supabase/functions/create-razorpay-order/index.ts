@@ -45,13 +45,40 @@ serve(async (req) => {
       );
     }
 
-    const { amount, currency = 'INR', receipt } = await req.json();
+    const { amount, currency = 'INR', receipt, packageId, listingId } = await req.json();
+
+    let verifiedAmount = amount;
+
+    // Security check: verify amount against database if packageId or listingId is provided
+    if (packageId) {
+      const { data: pkg, error: pkgError } = await supabase
+        .from('packages')
+        .select('price')
+        .eq('id', packageId)
+        .single();
+      
+      if (pkgError || !pkg) {
+        throw new Error('Invalid package ID');
+      }
+      verifiedAmount = pkg.price;
+    } else if (listingId) {
+      const { data: listing, error: listingError } = await supabase
+        .from('listings')
+        .select('rent_price')
+        .eq('id', listingId)
+        .single();
+      
+      if (listingError || !listing) {
+        throw new Error('Invalid listing ID');
+      }
+      verifiedAmount = listing.rent_price;
+    }
 
     // Validate amount (prevent abuse with unreasonable amounts)
-    if (!amount || amount < 1 || amount > 10000) {
-      console.error('Invalid amount:', amount);
+    if (!verifiedAmount || verifiedAmount < 1 || verifiedAmount > 20000) {
+      console.error('Invalid amount:', verifiedAmount);
       return new Response(
-        JSON.stringify({ error: 'Invalid amount: must be between 1 and 10000' }),
+        JSON.stringify({ error: 'Invalid amount: must be between 1 and 20000' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -77,7 +104,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: amount * 100, // Amount in paise
+        amount: verifiedAmount * 100, // Amount in paise
         currency,
         receipt: receipt || `receipt_${Date.now()}`,
       }),

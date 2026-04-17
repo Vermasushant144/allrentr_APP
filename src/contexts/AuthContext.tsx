@@ -15,7 +15,7 @@ interface AuthContextType {
     phone: string;
     password: string;
     pin_code: string;
-  }) => Promise<boolean>;
+  }) => Promise<{ success: boolean; verified?: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -70,7 +70,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ✅ FIXED SIGNUP FUNCTION (no 422 error)
   const signup = async (userData: {
     name: string;
     email: string;
@@ -88,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             phone: userData.phone,
             pin_code: userData.pin_code,
           },
-          // ✅ correct redirect key (Supabase v2)
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
@@ -100,15 +98,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: error.message || 'Unable to create account.',
           variant: 'destructive',
         });
-        return false;
+        return { success: false, error: error.message };
+      }
+
+      if (data.user && !data.session) {
+        toast({
+          title: 'Verification Required',
+          description: 'Please check your email to verify your account before logging in.',
+        });
+        return { success: true, verified: false };
       }
 
       toast({
         title: 'Account created successfully 🎉',
-        description: 'Please check your email to verify your account.',
+        description: 'You are now signed up.',
       });
 
-      return true;
+      return { success: true, verified: true };
     } catch (error: any) {
       console.error('Unexpected signup error:', error);
       toast({
@@ -116,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: 'Something went wrong while signing up.',
         variant: 'destructive',
       });
-      return false;
+      return { success: false, error: 'Unexpected error' };
     }
   };
 

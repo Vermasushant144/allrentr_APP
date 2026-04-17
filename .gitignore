@@ -29,3 +29,6 @@ chat-bot
 *.sln
 *.sw?
 docs
+*.apk
+bun.lock
+bun.lockb

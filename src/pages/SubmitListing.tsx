@@ -272,6 +272,7 @@ const SubmitListing = () => {
     const { data: orderData, error: orderError } = await supabase.functions.invoke('create-razorpay-order', {
       body: {
         amount: finalPrice,
+        packageId: selectedPackage,
         currency: 'INR',
         receipt: `listing_${Date.now()}`
       }
