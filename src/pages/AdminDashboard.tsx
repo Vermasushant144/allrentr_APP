@@ -176,10 +176,12 @@ const AdminDashboard = () => {
       csv += `Total Users,${stats.totalUsers}\n`;
       csv += `Total Revenue,₹${stats.totalRevenue}\n\n`;
 
+      const escapeCSV = (str: string) => `"${String(str).replace(/"/g, '""')}"`;
+
       csv += 'ALL LISTINGS\n';
       csv += 'ID,Product Name,Description,Rent Price,Pin Code,Status,Created At\n';
       listings?.forEach(l => {
-        csv += `"${l.id}","${l.product_name}","${l.description}",${l.rent_price},"${l.pin_code}","${l.listing_status}","${l.created_at}"\n`;
+        csv += `${escapeCSV(l.id)},${escapeCSV(l.product_name)},${escapeCSV(l.description)},${l.rent_price},${escapeCSV(l.pin_code)},${escapeCSV(l.listing_status)},${escapeCSV(l.created_at)}\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv' });

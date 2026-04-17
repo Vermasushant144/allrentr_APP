@@ -78,6 +78,21 @@ export const validateCoupon = async (code: string): Promise<{
       return { valid: false, error: 'Coupon usage limit reached' };
     }
 
+    // Check if user has already used this coupon
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: existingUsage } = await (supabase as any)
+        .from('coupon_usage')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('coupon_id', data.id)
+        .maybeSingle();
+
+      if (existingUsage) {
+        return { valid: false, error: 'You have already used this coupon code' };
+      }
+    }
+
     return { valid: true, coupon: data };
   } catch (error) {
     return { valid: false, error: 'Error validating coupon' };

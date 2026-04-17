@@ -68,7 +68,7 @@ import {
 const ListingDetail = () => {
     const navigate = useNavigate();
     const { slugId } = useParams();
-    const { user } = useAuth();
+    const { user, isAdmin } = useAuth();
     const { getOrCreateConversation, joinConversation, conversations } = useChat();
 
     const [listing, setListing] = useState<any>(null);
@@ -114,6 +114,13 @@ const ListingDetail = () => {
         return user && listing && listing.owner_user_id === user.id;
     }, [user, listing]);
 
+    // ✅ Improve Price Label for 'both' type
+    const getPriceLabelSuffix = () => {
+        if (listing?.product_type === 'sale') return '';
+        if (listing?.product_type === 'both') return '/day (Rent)';
+        return '/day';
+    };
+
     useEffect(() => {
         const fetchListing = async () => {
             if (!displayIdFromUrl) {
@@ -131,8 +138,7 @@ const ListingDetail = () => {
                     .from('listings')
                     .select('*')
                     .eq('display_id', normalizedId)
-                    .eq('listing_status', 'approved')
-                    .single();
+                    .single(); // Removed approved check to allow owner to see pending for edit
 
                 if (error) {
                     const altId = displayIdFromUrl.replace('PROD_', 'PROD-');
@@ -140,7 +146,6 @@ const ListingDetail = () => {
                         .from('listings')
                         .select('*')
                         .eq('display_id', altId)
-                        .eq('listing_status', 'approved')
                         .single();
 
                     if (altError) {
@@ -153,6 +158,13 @@ const ListingDetail = () => {
                 } else {
                     fetchedListing = data;
                     setListing(data);
+                }
+
+                // SECURITY: If not approved and not owner/admin, redirect
+                if (fetchedListing && fetchedListing.listing_status !== 'approved' && !isOwner && !isAdmin) {
+                    toast({ title: "Access Restricted", description: "This listing is pending approval.", variant: "destructive" });
+                    navigate('/listings');
+                    return;
                 }
 
                 if (fetchedListing?.id) {
@@ -325,6 +337,18 @@ const ListingDetail = () => {
 
         setDeleteLoading(true);
         try {
+            // ✅ Fix: Cleanup images from Storage before deleting from DB
+            if (listing.images && listing.images.length > 0) {
+                const filePaths = listing.images.map(url => {
+                    const parts = url.split('listings/');
+                    return parts.length > 1 ? parts[1] : null;
+                }).filter(path => path !== null) as string[];
+
+                if (filePaths.length > 0) {
+                    await supabase.storage.from('listings').remove(filePaths);
+                }
+            }
+
             const { error } = await supabase
                 .from('listings')
                 .delete()
@@ -593,7 +617,7 @@ const ListingDetail = () => {
                                     <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-wide mb-1">Price</p>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-2xl sm:text-3xl font-bold text-primary">₹{listing.rent_price || 0}</span>
-                                        <span className="text-sm text-gray-500">{listing.product_type === 'sale' ? '' : '/day'}</span>
+                                        <span className="text-sm text-gray-500">{getPriceLabelSuffix()}</span>
                                     </div>
                                     {listing.original_price > listing.rent_price && (
                                         <p className="text-xs sm:text-sm text-gray-400 line-through mt-1">₹{listing.original_price}</p>
